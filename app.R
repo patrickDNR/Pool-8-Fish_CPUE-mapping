@@ -39,7 +39,7 @@ cpue <- cbind(cpue, latlon_df)
 ui <- fluidPage(
   
   # App title ----
-  titlePanel("Fish CPUE"),
+  titlePanel("Fish CPUE Time Series and Map"),
   
   # Sidebar layout with input and output definitions ----
   sidebarLayout(
@@ -55,6 +55,18 @@ ui <- fluidPage(
                      min = min(cpue$DATE), 
                      max = max(cpue$DATE), 
                      format = 'yyyy-mm-dd'),
+      
+      #Select months of interest
+      checkboxGroupInput(inputId = 'months', 
+                         label = 'Select Sampling Months:', 
+                         choices = c('June' = 'Jun', 
+                                     'July' = 'Jul', 
+                                     'August' = 'Aug', 
+                                     'September' = "Sep", 
+                                     'October' = 'Oct', 
+                                     'November' = 'Nov'), 
+                         selected = c('Jun', 'Jul', 'Aug', 'Sep', 
+                                      'Oct', 'Nov')),
       
       # Input: Enter gear type
       selectInput(inputId = 'gear_type', 
@@ -84,7 +96,7 @@ ui <- fluidPage(
                               'Yellow bullhead', 'Yellow perch')),
       
       #Add input for habitat
-      selectInput(inputId = 'habitat', 
+      checkboxGroupInput(inputId = 'habitat', 
                     label = 'Select Stratum:', 
                   choices = c('Wing Dam' = 'MCB-W', 
                               'Main Channel Border - Unstructured' = 'MCB-U', 
@@ -92,7 +104,9 @@ ui <- fluidPage(
                               'Impounded - Shoreline' = 'IMP-S', 
                               'Impounded-Offshore' = 'IMP-O', 
                               'Side Channel' = 'SCB', 
-                              'Tailwater'  = 'TWZ')),
+                              'Tailwater'  = 'TWZ'), 
+                  selected = c('MCB-W', 'MCB-U', 'BWC-S', 'IMP-S', 'IMP-O', 
+                               'SCB', 'TWZ')),
       
       #checkbox to select if you want to show outliers or not
       checkboxInput(inputId = 'outliers', 
@@ -140,7 +154,8 @@ server <- function(input, output) {
       filter(gear == input$gear_type) %>%
       filter(Fishname == input$fish) %>%
       filter(!is.na(CPUE)) %>%
-      filter(stratum == input$habitat)
+      filter(stratum %in% input$habitat) %>%
+      filter(Month %in% input$months)
   
   })
   
