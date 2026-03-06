@@ -65,7 +65,7 @@ ui <- fluidPage(
       
       #Input: Select constituent
       selectInput(inputId = 'fish', 
-                  label = 'Species:', 
+                  label = 'Select Species:', 
                   choices = c('Bigmouth buffalo', 
                               'Black bullhead', 'Black crappie', 
                               'Bluegill', 'Bowfin', 'Brown bullhead', 
@@ -82,6 +82,17 @@ ui <- fluidPage(
                               'Walleye', 'Warmouth', 'Weed shiner', 'Western sand darter', 
                               'White bass', 'White crappie', 'White sucker', 'Yellow bass', 
                               'Yellow bullhead', 'Yellow perch')),
+      
+      #Add input for habitat
+      selectInput(inputId = 'habitat', 
+                    label = 'Select Stratum:', 
+                  choices = c('Wing Dam' = 'MCB-W', 
+                              'Main Channel Border - Unstructured' = 'MCB-U', 
+                              'Backwater' = 'BWC-S', 
+                              'Impounded - Shoreline' = 'IMP-S', 
+                              'Impounded-Offshore' = 'IMP-O', 
+                              'Side Channel' = 'SCB', 
+                              'Tailwater'  = 'TWZ')),
       
       #checkbox to select if you want to show outliers or not
       checkboxInput(inputId = 'outliers', 
@@ -128,7 +139,8 @@ server <- function(input, output) {
         filter(DATE >= input$date_range[1] & DATE <= input$date_range[2]) %>%
       filter(gear == input$gear_type) %>%
       filter(Fishname == input$fish) %>%
-      filter(!is.na(CPUE))
+      filter(!is.na(CPUE)) %>%
+      filter(stratum == input$habitat)
   
   })
   
@@ -146,6 +158,10 @@ server <- function(input, output) {
   #Generate a boxplot across habitat classes
  output$fishBoxes <- renderPlot({
     df <- filtered_data()
+    
+    validate(
+      need(nrow(df) > 0, 'No data available to display. Please adjust stratum or gear filters.')
+    )
     
       boxplot(
       as.numeric(df$CPUE) ~ as.numeric(df$Year), 
