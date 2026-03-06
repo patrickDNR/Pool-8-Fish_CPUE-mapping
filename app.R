@@ -15,7 +15,7 @@ data_url <- 'https://raw.githubusercontent.com/patrickDNR/Pool-8-Fish_CPUE-mappi
 download.file(data_url, 'CPUE_all.csv')
 
 cpue <- read.csv('CPUE_all.csv') %>%
-  dplyr::mutate(Year = format(mdy(sdate), '%Y')) %>%
+  dplyr::mutate(Year = as.numeric(format(mdy(sdate), '%Y'))) %>%
   dplyr::mutate(Month = month(mdy(sdate), label = T)) %>%
   dplyr::mutate(DATE = as.Date(format(mdy(sdate), '%Y-%m-%d')))
 
@@ -47,14 +47,15 @@ ui <- fluidPage(
     # Sidebar panel for inputs ----
     sidebarPanel(
       
-      # Input: Let's try to do date range
-      dateRangeInput(inputId = 'date_range', 
+      # Input: Maybe a slider for time series?
+      sliderInput(inputId = 'date_range', 
                      label = 'Select Date Range:', 
-                     start = min(cpue$DATE), 
-                     end = max(cpue$DATE), 
-                     min = min(cpue$DATE), 
-                     max = max(cpue$DATE), 
-                     format = 'yyyy-mm-dd'),
+                     min = min(cpue$Year), 
+                     max = max(cpue$Year),
+                     step = 1,
+                     value = c(min(cpue$Year), max(cpue$Year)), 
+                      sep = '', 
+                  ticks = F),
       
       #Select months of interest
       checkboxGroupInput(inputId = 'months', 
@@ -150,7 +151,7 @@ server <- function(input, output) {
   
   filtered_data <- reactive({
       cpue %>%
-        filter(DATE >= input$date_range[1] & DATE <= input$date_range[2]) %>%
+        filter(Year >= input$date_range[1] & Year <= input$date_range[2]) %>%
       filter(gear == input$gear_type) %>%
       filter(Fishname == input$fish) %>%
       filter(!is.na(CPUE)) %>%
