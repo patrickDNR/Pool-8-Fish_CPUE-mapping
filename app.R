@@ -38,14 +38,44 @@ cpue <- cbind(cpue, latlon_df)
 # Define UI for water quality map app ----
 ui <- fluidPage(
   
-  # App title ----
-  titlePanel("Fish CPUE Time Series and Map"),
+  bslib::page_navbar(
+    
+    #set up ID
+    id = 'nav', 
+    
+    
+    #make a title for the app
+    title = 'Fish CPUE Time Series and Map', 
+    
+    
+    #Set background color
+    bg = 'darkgreen', 
+    
+    #Set theme
+    theme = bslib::bs_theme(version = 5), 
+    
+    #Window title 
+    
+    window_title = 'Fish CPUE', 
+    
+    #make it mobile friendly?
+    
+  fillable_mobile = TRUE, 
+  
+  #Now for the good stuff, make a sidebar first...
   
   # Sidebar layout with input and output definitions ----
-  sidebarLayout(
+  sidebar = bslib::sidebar(
+    id = 'sidebar', 
+    width = 600, 
+    position = 'left', 
+    open = TRUE,
     
     # Sidebar panel for inputs ----
-    sidebarPanel(
+    conditionalPanel(
+      condition = 'input.nav' == 'Time series plot' ||
+        'input.nav' == 'Sample point map',
+      width = 2/3,
       
       # Input: Maybe a slider for time series?
       sliderInput(inputId = 'date_range', 
@@ -118,24 +148,32 @@ ui <- fluidPage(
       downloadButton(outputId = 'downloadData', 
                      label = 'Download CSV')
 
+    )
     ),
-    
-    # Main panel for displaying outputs ----
-    mainPanel(
       
       # Output: Formatted text for caption ----
-      h3(textOutput("caption")),
+    #  h3(textOutput("caption")),
       
-      fluidRow(
-        plotOutput('fishBoxes', height = 400, width = 600)
+      nav_panel(title = "Time series plot",
+                
+                bslib::layout_column_wrap(
+                  width = '600px', 
+                  fill = FALSE,
+                
+        plotOutput('fishBoxes', height = 600, width = 1000)
+      )
       ),
       
       # Output: Map of fish variable ----
-      fluidRow(
+      nav_panel(title = 'Sample point map',
+                bslib::layout_column_wrap(
+                
+              width = '600px', 
+              fill = FALSE,
         leafletOutput("fishMap", height = 800))
-      
+      )
     )
-  )
+  
 )
 
 # Define server logic to plot various variables against mpg ----
@@ -183,7 +221,9 @@ server <- function(input, output) {
       as.numeric(df$CPUE) ~ as.numeric(df$Year), 
       xlab = 'Year',
       ylab = paste(input$fish, unique(df$lab)), 
-      outline = input$outliers
+      outline = input$outliers, 
+      cex.lab = 1.5, 
+      cex.axis = 1.5
     )
 
   })
