@@ -35,17 +35,39 @@ colnames(latlon_df) <- c('lng', 'lat')
 #combine with water quality data
 cpue <- cbind(cpue, latlon_df)
 
+#Now do the same with summaries data
+summary_url <- 'https://raw.githubusercontent.com/patrickDNR/Pool-8-Fish_CPUE-mapping/refs/heads/main/Data/summaries_allGear.csv'
+download.file(summary_url, 'summaries_allGear.csv')
+
+sum.all <- read.csv('summaries_allGear.csv') %>%
+  dplyr::mutate(date = as.Date(format(mdy(sdate), '%Y-%m-%d'))) %>%
+  dplyr::mutate(Month = month(mdy(sdate), label = T)) %>%
+  select(code, date, Month, gear,zone15e, zone15n, temp, do, vegd, stratum, richness, shannon, year)
+
+#Fix the location data just like with cpue
+#Convert to sf object
+sum.utm_sf <- st_as_sf(sum.all, coords = c('zone15e', 'zone15n'), crs = utm_crs)
+
+#transform to geographic coordinates
+sum.latlon_sf <- st_transform(sum.utm_sf, crs = 4326)
+
+#make into data frame
+sum.latlon_df <- as.data.frame(st_coordinates(sum.latlon_sf))
+colnames(sum.latlon_df) <- c('lng', 'lat')
+
+#combine with water quality data
+sum.all <- cbind(sum.all, sum.latlon_df)
+
+
 # Define UI for water quality map app ----
-ui <- fluidPage(
-  
-  bslib::page_navbar(
+ui <-  bslib::page_navbar(
     
     #set up ID
     id = 'nav', 
     
     
     #make a title for the app
-    title = 'Fish CPUE Time Series and Map', 
+    title = 'LTRM Fish Data', 
     
     
     #Set background color
@@ -61,34 +83,211 @@ ui <- fluidPage(
     #make it mobile friendly?
     
   fillable_mobile = TRUE, 
+  fillable = TRUE,
+  fluid = TRUE,
   
-  #Now for the good stuff, make a sidebar first...
-  
-  # Sidebar layout with input and output definitions ----
-  sidebar = bslib::sidebar(
-    id = 'sidebar', 
-    width = 600, 
-    position = 'left', 
-    open = TRUE,
+  #Now for the good stuff, start with the first page as Fish CPUE plot
+#Page 1 -- CPUE time series plot
+  nav_panel(
+    title = 'CPUE time series plot', 
     
-    # Sidebar panel for inputs ----
-    conditionalPanel(
-      condition = 'input.nav' == 'Time series plot' ||
-        'input.nav' == 'Sample point map',
-      width = 2/3,
+    layout_sidebar(
       
-      # Input: Maybe a slider for time series?
-      sliderInput(inputId = 'date_range', 
-                     label = 'Select Date Range:', 
-                     min = min(cpue$Year), 
-                     max = max(cpue$Year),
-                     step = 1,
-                     value = c(min(cpue$Year), max(cpue$Year)), 
-                      sep = '', 
+      position = 'left',
+    sidebar = bslib::sidebar(
+      width = 600, 
+      open = TRUE,
+
+        # Input: Maybe a slider for time series?
+        sliderInput(inputId = 'date_range', 
+                    label = 'Select Date Range:', 
+                    min = min(cpue$Year), 
+                    max = max(cpue$Year),
+                    step = 1,
+                    value = c(min(cpue$Year), max(cpue$Year)), 
+                    sep = '', 
+                    ticks = F),
+        
+        #Select months of interest
+        checkboxGroupInput(inputId = 'months', 
+                           label = 'Select Sampling Months:', 
+                           choices = c('June' = 'Jun', 
+                                       'July' = 'Jul', 
+                                       'August' = 'Aug', 
+                                       'September' = "Sep", 
+                                       'October' = 'Oct', 
+                                       'November' = 'Nov'), 
+                           selected = c('Jun', 'Jul', 'Aug', 'Sep', 
+                                        'Oct', 'Nov')),
+        
+        # Input: Enter gear type
+        selectInput(inputId = 'gear_type', 
+                    label = 'Select Gear Type:', 
+                    choices = c('Large Fyke' = 'F', 
+                                'Mini Fyke' = 'M', 
+                                'Day electroshocking' = 'D')),
+        
+        #Input: Select constituent
+        selectInput(inputId = 'fish', 
+                    label = 'Select Species:', 
+                    choices = c('Bigmouth buffalo', 
+                                'Black bullhead', 'Black crappie', 
+                                'Bluegill', 'Bowfin', 'Brown bullhead', 
+                                'Burbot', 'Central mudminnow', 'Channel catfish', 'Common carp', 
+                                'Emerald shiner', 'Fathead minnow', 'Freshwater drum', 
+                                'Gizzard shad', 'Golden redhorse', 'Golden shiner', 'Green sunfish', 
+                                'Largemouth bass', 'Longnose gar', 'Mimic shiner', 'Mooneye', 
+                                'Northern pike', 'Orangespotted sunfish', 'Pugnose minnow', 
+                                'Pumpkinseed', 'Quillback', 'River carpsucker', 'River darter', 
+                                'River shiner', 'Rock bass', 'Sand shiner', 'Sauger', 'Shorthead redhorse', 
+                                'Shortnose gar', 'Shovelnose sturgeon', 'Silver chub', 'Silver redhorse', 
+                                'Smallmouth bass', 'Smallmouth buffalo', 'Spotfin shiner', 
+                                'Spottail shiner', 'Spotted sucker', 'Stonecat', 'Tadpole madtom', 
+                                'Walleye', 'Warmouth', 'Weed shiner', 'Western sand darter', 
+                                'White bass', 'White crappie', 'White sucker', 'Yellow bass', 
+                                'Yellow bullhead', 'Yellow perch')),
+        
+        #Add input for habitat
+        checkboxGroupInput(inputId = 'habitat', 
+                           label = 'Select Stratum:', 
+                           choices = c('Wing Dam' = 'MCB-W', 
+                                       'Main Channel Border - Unstructured' = 'MCB-U', 
+                                       'Backwater' = 'BWC-S', 
+                                       'Impounded - Shoreline' = 'IMP-S', 
+                                       'Impounded-Offshore' = 'IMP-O', 
+                                       'Side Channel' = 'SCB', 
+                                       'Tailwater'  = 'TWZ'), 
+                           selected = c('MCB-W', 'MCB-U', 'BWC-S', 'IMP-S', 'IMP-O', 
+                                        'SCB', 'TWZ')),
+        
+        #checkbox to select if you want to show outliers or not
+        checkboxInput(inputId = 'outliers', 
+                      label = 'Show outliers:', 
+                      value = TRUE),
+        
+        #Add the option to download the selected dataset
+        downloadButton(outputId = 'downloadData', 
+                       label = 'Download CSV')
+        
+      )
+    ),
+    
+    bslib::layout_column_wrap(
+      width = '600px', 
+      fill = FALSE,
+      
+      plotOutput('fishBoxes', height = 600, width = 1000)
+    )
+  ),
+
+  #Page 2 -- sample point map for fish CPUE
+    nav_panel(
+      title = 'CPUE sample point map', 
+      
+      layout_sidebar(
+      sidebar = bslib::sidebar( 
+        width = 600, 
+        position = 'left', 
+        open = TRUE,
+        
+        # Input: Maybe a slider for time series?
+        sliderInput(inputId = 'date_range', 
+                    label = 'Select Date Range:', 
+                    min = min(cpue$Year), 
+                    max = max(cpue$Year),
+                    step = 1,
+                    value = c(min(cpue$Year), max(cpue$Year)), 
+                    sep = '', 
+                    ticks = F),
+        
+        #Select months of interest
+        checkboxGroupInput(inputId = 'months', 
+                           label = 'Select Sampling Months:', 
+                           choices = c('June' = 'Jun', 
+                                       'July' = 'Jul', 
+                                       'August' = 'Aug', 
+                                       'September' = "Sep", 
+                                       'October' = 'Oct', 
+                                       'November' = 'Nov'), 
+                           selected = c('Jun', 'Jul', 'Aug', 'Sep', 
+                                        'Oct', 'Nov')),
+        
+        # Input: Enter gear type
+        selectInput(inputId = 'gear_type', 
+                    label = 'Select Gear Type:', 
+                    choices = c('Large Fyke' = 'F', 
+                                'Mini Fyke' = 'M', 
+                                'Day electroshocking' = 'D')),
+        
+        #Input: Select constituent
+        selectInput(inputId = 'fish', 
+                    label = 'Select Species:', 
+                    choices = c('Bigmouth buffalo', 
+                                'Black bullhead', 'Black crappie', 
+                                'Bluegill', 'Bowfin', 'Brown bullhead', 
+                                'Burbot', 'Central mudminnow', 'Channel catfish', 'Common carp', 
+                                'Emerald shiner', 'Fathead minnow', 'Freshwater drum', 
+                                'Gizzard shad', 'Golden redhorse', 'Golden shiner', 'Green sunfish', 
+                                'Largemouth bass', 'Longnose gar', 'Mimic shiner', 'Mooneye', 
+                                'Northern pike', 'Orangespotted sunfish', 'Pugnose minnow', 
+                                'Pumpkinseed', 'Quillback', 'River carpsucker', 'River darter', 
+                                'River shiner', 'Rock bass', 'Sand shiner', 'Sauger', 'Shorthead redhorse', 
+                                'Shortnose gar', 'Shovelnose sturgeon', 'Silver chub', 'Silver redhorse', 
+                                'Smallmouth bass', 'Smallmouth buffalo', 'Spotfin shiner', 
+                                'Spottail shiner', 'Spotted sucker', 'Stonecat', 'Tadpole madtom', 
+                                'Walleye', 'Warmouth', 'Weed shiner', 'Western sand darter', 
+                                'White bass', 'White crappie', 'White sucker', 'Yellow bass', 
+                                'Yellow bullhead', 'Yellow perch')),
+        
+        #Add input for habitat
+        checkboxGroupInput(inputId = 'habitat', 
+                           label = 'Select Stratum:', 
+                           choices = c('Wing Dam' = 'MCB-W', 
+                                       'Main Channel Border - Unstructured' = 'MCB-U', 
+                                       'Backwater' = 'BWC-S', 
+                                       'Impounded - Shoreline' = 'IMP-S', 
+                                       'Impounded-Offshore' = 'IMP-O', 
+                                       'Side Channel' = 'SCB', 
+                                       'Tailwater'  = 'TWZ'), 
+                           selected = c('MCB-W', 'MCB-U', 'BWC-S', 'IMP-S', 'IMP-O', 
+                                        'SCB', 'TWZ')),
+        
+        #checkbox to select if you want to show outliers or not
+        checkboxInput(inputId = 'outliers', 
+                      label = 'Show outliers:', 
+                      value = TRUE),
+        
+        #Add the option to download the selected dataset
+        downloadButton(outputId = 'CPUE_downloadData', 
+                       label = 'Download CSV')
+      )
+      ),
+      
+        bslib::layout_column_wrap(
+          
+          width = '600px', 
+          fill = FALSE,
+          leafletOutput("fishMap", height = 800)),
+    ),
+    
+    nav_panel(
+      title = 'Diversity time series plot', 
+
+      layout_sidebar(
+      sidebar = bslib::sidebar( 
+        width = 600,
+        open = TRUE,
+      sliderInput(inputId = 'sum_date_range', 
+                  label = 'Select Date Range:', 
+                  min = min(sum.all$year), 
+                  max = max(sum.all$year),
+                  step = 1,
+                  value = c(min(sum.all$year), max(sum.all$year)), 
+                  sep = '', 
                   ticks = F),
       
       #Select months of interest
-      checkboxGroupInput(inputId = 'months', 
+      checkboxGroupInput(inputId = 'sum_months', 
                          label = 'Select Sampling Months:', 
                          choices = c('June' = 'Jun', 
                                      'July' = 'Jul', 
@@ -100,81 +299,48 @@ ui <- fluidPage(
                                       'Oct', 'Nov')),
       
       # Input: Enter gear type
-      selectInput(inputId = 'gear_type', 
-                     label = 'Select Gear Type:', 
-                     choices = c('Large Fyke' = 'F', 
-                                 'Mini Fyke' = 'M', 
-                                 'Day electroshocking' = 'D')),
-      
-      #Input: Select constituent
-      selectInput(inputId = 'fish', 
-                  label = 'Select Species:', 
-                  choices = c('Bigmouth buffalo', 
-                              'Black bullhead', 'Black crappie', 
-                              'Bluegill', 'Bowfin', 'Brown bullhead', 
-                              'Burbot', 'Central mudminnow', 'Channel catfish', 'Common carp', 
-                              'Emerald shiner', 'Fathead minnow', 'Freshwater drum', 
-                              'Gizzard shad', 'Golden redhorse', 'Golden shiner', 'Green sunfish', 
-                              'Largemouth bass', 'Longnose gar', 'Mimic shiner', 'Mooneye', 
-                              'Northern pike', 'Orangespotted sunfish', 'Pugnose minnow', 
-                              'Pumpkinseed', 'Quillback', 'River carpsucker', 'River darter', 
-                              'River shiner', 'Rock bass', 'Sand shiner', 'Sauger', 'Shorthead redhorse', 
-                              'Shortnose gar', 'Shovelnose sturgeon', 'Silver chub', 'Silver redhorse', 
-                              'Smallmouth bass', 'Smallmouth buffalo', 'Spotfin shiner', 
-                              'Spottail shiner', 'Spotted sucker', 'Stonecat', 'Tadpole madtom', 
-                              'Walleye', 'Warmouth', 'Weed shiner', 'Western sand darter', 
-                              'White bass', 'White crappie', 'White sucker', 'Yellow bass', 
-                              'Yellow bullhead', 'Yellow perch')),
+      selectInput(inputId = 'sum_gear_type', 
+                  label = 'Select Gear Type:', 
+                  choices = c('Large Fyke' = 'F', 
+                              'Mini Fyke' = 'M', 
+                              'Day electroshocking' = 'D')),
       
       #Add input for habitat
-      checkboxGroupInput(inputId = 'habitat', 
-                    label = 'Select Stratum:', 
-                  choices = c('Wing Dam' = 'MCB-W', 
-                              'Main Channel Border - Unstructured' = 'MCB-U', 
-                              'Backwater' = 'BWC-S', 
-                              'Impounded - Shoreline' = 'IMP-S', 
-                              'Impounded-Offshore' = 'IMP-O', 
-                              'Side Channel' = 'SCB', 
-                              'Tailwater'  = 'TWZ'), 
-                  selected = c('MCB-W', 'MCB-U', 'BWC-S', 'IMP-S', 'IMP-O', 
-                               'SCB', 'TWZ')),
+      checkboxGroupInput(inputId = 'sum_habitat', 
+                         label = 'Select Stratum:', 
+                         choices = c('Wing Dam' = 'MCB-W', 
+                                     'Main Channel Border - Unstructured' = 'MCB-U', 
+                                     'Backwater' = 'BWC-S', 
+                                     'Impounded - Shoreline' = 'IMP-S', 
+                                     'Impounded-Offshore' = 'IMP-O', 
+                                     'Side Channel' = 'SCB', 
+                                     'Tailwater'  = 'TWZ'), 
+                         selected = c('MCB-W', 'MCB-U', 'BWC-S', 'IMP-S', 'IMP-O', 
+                                      'SCB', 'TWZ')),
       
       #checkbox to select if you want to show outliers or not
-      checkboxInput(inputId = 'outliers', 
+      checkboxInput(inputId = 'sum_outliers', 
                     label = 'Show outliers:', 
                     value = TRUE),
       
       #Add the option to download the selected dataset
-      downloadButton(outputId = 'downloadData', 
+      downloadButton(outputId = 'sum_downloadData', 
                      label = 'Download CSV')
-
+      
     )
     ),
+    bslib::layout_column_wrap(
+      width = '600px', 
+      fill = TRUE,
       
-      # Output: Formatted text for caption ----
-    #  h3(textOutput("caption")),
-      
-      nav_panel(title = "Time series plot",
-                
-                bslib::layout_column_wrap(
-                  width = '600px', 
-                  fill = FALSE,
-                
-        plotOutput('fishBoxes', height = 600, width = 1000)
-      )
-      ),
-      
-      # Output: Map of fish variable ----
-      nav_panel(title = 'Sample point map',
-                bslib::layout_column_wrap(
-                
-              width = '600px', 
-              fill = FALSE,
-        leafletOutput("fishMap", height = 800))
-      )
+      plotOutput('divBoxes', height = 300, width = 600)
     )
-  
-)
+    )
+    
+    
+)  
+
+
 
 # Define server logic to plot various variables against mpg ----
 server <- function(input, output) {
@@ -196,6 +362,17 @@ server <- function(input, output) {
       filter(stratum %in% input$habitat) %>%
       filter(Month %in% input$months)
   
+  })
+  
+  #filter summary data based on input parameters
+  filtered_summary <- reactive({
+    sum.all %>%
+      filter(year >= input$sum_date_range[1] & year <= input$sum_date_range[2]) %>%
+      filter(gear == input$sum_gear_type) %>%
+      filter(!is.na(shannon)) %>%
+      filter(stratum %in% input$sum_habitat) %>%
+      filter(Month %in% input$sum_months)
+    
   })
   
   colorpal <- reactive({
@@ -261,6 +438,43 @@ server <- function(input, output) {
     },
     content = function(file){
       write.csv(filtered_data(), file, row.names = FALSE)
+    }
+  )
+  
+  output$CPUE_downloadData <- downloadHandler(
+    filename = function(){
+      paste('FISH_CPUEdata-', Sys.Date(), '.csv', sep = '')
+    },
+    content = function(file){
+      write.csv(filtered_data(), file, row.names = FALSE)
+    }
+  )
+  
+  #Generate a boxplot across habitat classes
+  output$divBoxes <- renderPlot({
+    df <- filtered_summary()
+    
+    validate(
+      need(nrow(df) > 0, 'No data available to display. Please adjust stratum or gear filters.')
+    )
+    
+    boxplot(
+      as.numeric(df$shannon) ~ as.numeric(df$year), 
+      xlab = 'Year',
+      ylab = 'Shannon index (H)', 
+      outline = input$sum_outliers, 
+      cex.lab = 1.5, 
+      cex.axis = 1.5
+    )
+    
+  })
+  
+  output$sum_downloadData <- downloadHandler(
+    filename = function(){
+      paste('FISH_Diversitydata-', Sys.Date(), '.csv', sep = '')
+    },
+    content = function(file){
+      write.csv(filtered_summary(), file, row.names = FALSE)
     }
   )
   
