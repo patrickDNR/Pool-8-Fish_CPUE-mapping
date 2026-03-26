@@ -426,11 +426,6 @@ ui <-
                              selected = c('MCB-W', 'MCB-U', 'BWC-S', 'IMP-S', 'IMP-O', 
                                           'SCB', 'TWZ')),
           
-          #checkbox to select if you want to show outliers or not
-          checkboxInput(inputId = 'length_outliers', 
-                        label = 'Show outliers:', 
-                        value = TRUE),
-          
           #Add the option to download the selected dataset
           downloadButton(outputId = 'length_downloadData', 
                          label = 'Download CSV')
