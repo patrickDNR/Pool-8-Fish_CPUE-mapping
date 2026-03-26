@@ -199,7 +199,8 @@ ui <-
         )
         ,
         mainPanel(
-          plotOutput('fishBoxes', height = 600, width = 1000)
+          plotOutput('fishBoxes', height = 600, width = 1000), 
+          "Annual boxplots of fish CPUE for each catch using LTRM SRS sampling."
         )
       )
     ),
@@ -348,7 +349,9 @@ ui <-
         )
         ,
         mainPanel(
-          plotOutput('divBoxes', , height = 600, width = 1000)
+          plotOutput('divBoxes', , height = 600, width = 1000), 
+          
+          "Annual boxplots of Shannon diversity index measured for each catch from LTRM SRS sampling."
         )
       )
     ), 
@@ -435,7 +438,9 @@ ui <-
         )
         ,
         mainPanel(
-          plotOutput('lengthPlot', height = 600, width = 1000)
+          plotOutput('lengthPlot', height = 600, width = 1000),
+          
+          "Annual averages of the median (50%), 25%, and 75% quantiles of measured length for fish collected from LTRM SRS sampling."
         )
       )
     )
