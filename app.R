@@ -522,7 +522,7 @@ server <- function(input, output) {
     boxplot(
       as.numeric(df$CPUE) ~ as.numeric(df$Year), 
       xlab = 'Year',
-      ylab = paste(input$fish, unique(df$lab)), 
+      ylab = paste(input$CPUEts_fish, unique(df$lab)), 
       outline = input$CPUEts_outliers, 
       cex.lab = 1.5, 
       cex.axis = 1.5
