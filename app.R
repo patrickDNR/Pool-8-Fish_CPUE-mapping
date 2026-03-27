@@ -103,7 +103,7 @@ ui <-
     
     
     #Set background color
-    bg = 'darkgreen', 
+    bg = 'darkblue', 
     
     #Set theme
     theme = bslib::bs_theme(version = 5), 
