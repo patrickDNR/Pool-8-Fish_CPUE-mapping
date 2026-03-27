@@ -10,7 +10,6 @@ library(bslib)
 library(viridis)
 
 #load data -- get from github
-#load data -- grab from github
 data_url <- 'https://raw.githubusercontent.com/patrickDNR/Pool-8-Fish_CPUE-mapping/refs/heads/main/Data/CPUE_all.csv'
 download.file(data_url, 'CPUE_all.csv')
 
@@ -103,7 +102,7 @@ ui <-
     
     
     #Set background color
-    bg = 'darkblue', 
+    bg = 'darkgreen', 
     
     #Set theme
     theme = bslib::bs_theme(version = 5), 
